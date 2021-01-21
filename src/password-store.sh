@@ -365,34 +365,40 @@ cmd_init() {
 
 cmd_show() {
 	local opts selected_line clip=0 qrcode=0
-	opts="$($GETOPT -o q::c:: -l qrcode::,clip:: -n "$PROGRAM" -- "$@")"
+	opts="$($GETOPT -o q::c::f:: -l qrcode::,clip::,field:: -n "$PROGRAM" -- "$@")"
 	local err=$?
 	eval set -- "$opts"
 	while true; do case $1 in
 		-q|--qrcode) qrcode=1; selected_line="${2:-1}"; shift 2 ;;
 		-c|--clip) clip=1; selected_line="${2:-1}"; shift 2 ;;
+		-f|--field) field=1; selected_field="${2:-1}"; shift 2 ;;
 		--) shift; break ;;
 	esac done
 
-	[[ $err -ne 0 || ( $qrcode -eq 1 && $clip -eq 1 ) ]] && die "Usage: $PROGRAM $COMMAND [--clip[=line-number],-c[line-number]] [--qrcode[=line-number],-q[line-number]] [pass-name]"
+	[[ $err -ne 0 || ( $qrcode -eq 1 && $clip -eq 1 && $field -eq 1 ) ]] && die "Usage: $PROGRAM $COMMAND [--clip[=line-number],-c[line-number]] [--qrcode[=line-number],-q[line-number]] [--field[=field-name],-f[field-name]] [pass-name]"
 
 	local pass
 	local path="$1"
 	local passfile="$PREFIX/$path.gpg"
 	check_sneaky_paths "$path"
 	if [[ -f $passfile ]]; then
-		if [[ $clip -eq 0 && $qrcode -eq 0 ]]; then
+		if [[ $clip -eq 0 && $qrcode -eq 0 && $field -eq 0 ]]; then
 			pass="$($GPG -d "${GPG_OPTS[@]}" "$passfile" | $BASE64)" || exit $?
 			echo "$pass" | $BASE64 -d
 		else
-			[[ $selected_line =~ ^[0-9]+$ ]] || die "Clip location '$selected_line' is not a number."
-			pass="$($GPG -d "${GPG_OPTS[@]}" "$passfile" | tail -n +${selected_line} | head -n 1)" || exit $?
-			[[ -n $pass ]] || die "There is no password to put on the clipboard at line ${selected_line}."
-			if [[ $clip -eq 1 ]]; then
-				clip "$pass" "$path"
-			elif [[ $qrcode -eq 1 ]]; then
-				qrcode "$pass" "$path"
-			fi
+            if [[ $clip -eq 1 ]]; then
+                [[ $selected_line =~ ^[0-9]+$ ]] || die "Clip location '$selected_line' is not a number."
+                pass="$($GPG -d "${GPG_OPTS[@]}" "$passfile" | tail -n +${selected_line} | head -n 1)" || exit $?
+                [[ -n $pass ]] || die "There is no password to put on the clipboard at line ${selected_line}."
+                if [[ $clip -eq 1 ]]; then
+                    clip "$pass" "$path"
+                elif [[ $qrcode -eq 1 ]]; then
+                    qrcode "$pass" "$path"
+                fi
+            elif [[ $field -eq 1 ]]; then
+                pass="$($GPG -d "${GPG_OPTS[@]}" "$passfile" | shyaml get-value ${selected_field})" || exit $?
+                clip "$pass" "$path"
+            fi
 		fi
 	elif [[ -d $PREFIX/$path ]]; then
 		if [[ -z $path ]]; then

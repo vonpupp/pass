@@ -30,3 +30,24 @@ Depends on:
   http://software.frodo.looijaard.name/getopt/
 - qrencode
   https://fukuchi.org/works/qrencode/
+- shyaml
+  https://pypi.org/project/shyaml/
+
+The modified version of the original software supports a new parameter (-f) that
+allows to fetch a specific field in case you use fields in YAML notation as
+this:
+
+```
+Yw|ZSNH!}z"6{ym9pI
+URL: domain.com
+host1: h1.domain.com
+token1: token1729a
+```
+
+In this case you use the software as follows
+
+```
+pass show -ftoken1 <file>
+```
+
+This will automatically copy to clipboard the value `token1729a` for 45 seconds.
